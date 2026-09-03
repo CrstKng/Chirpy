@@ -32,9 +32,9 @@ func main() {
 	strippedFileServer := http.StripPrefix("/app", handler)
 	mux.Handle("/app/", apiCfg.middlewareMetricsInc(strippedFileServer))
 
-	mux.HandleFunc("/healthz", handlerReadinessCheck)
-	mux.HandleFunc("/metrics", apiCfg.handlerRequestCounter)
-	mux.HandleFunc("/reset", apiCfg.handlerReset)
+	mux.HandleFunc("GET /healthz", handlerReadinessCheck)
+	mux.HandleFunc("GET /metrics", apiCfg.handlerRequestCounter)
+	mux.HandleFunc("POST /reset", apiCfg.handlerReset)
 
 	srv := &http.Server{
 		Addr: ":" + port,
