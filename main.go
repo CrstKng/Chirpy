@@ -17,7 +17,7 @@ func main() {
 	strippedFileServer := http.StripPrefix("/app", handler)
 	mux.Handle("/app/", strippedFileServer)
 
-	mux.HandleFunc("/healthz", ReadinessCheck)
+	mux.HandleFunc("/healthz", handlerReadinessCheck)
 
 	srv := &http.Server{
 		Addr: ":" + port,
