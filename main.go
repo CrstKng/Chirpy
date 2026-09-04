@@ -15,6 +15,7 @@ import (
 type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries *database.Queries
+	PLATFORM string
 }
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -39,6 +40,7 @@ func main() {
 	var apiConfig apiConfig
 	apiCfg := &apiConfig
 	apiCfg.dbQueries = dbQueries
+	apiCfg.PLATFORM = os.Getenv("PLATFORM")
 
 	mux := http.NewServeMux()
 
@@ -51,6 +53,7 @@ func main() {
 	mux.HandleFunc("GET /admin/metrics", apiCfg.handlerRequestCounter)
 	mux.HandleFunc("POST /admin/reset", apiCfg.handlerReset)
 	mux.HandleFunc("POST /api/validate_chirp", handlerValidateChirp)
+	mux.HandleFunc("POST /api/users", apiCfg.handlerCreateUser)
 
 	srv := &http.Server{
 		Addr: ":" + port,
