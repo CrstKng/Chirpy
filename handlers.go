@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"encoding/json"
 	"log"
+	"strings"
 )
 
 func handlerReadinessCheck(w http.ResponseWriter, req *http.Request) {
@@ -37,6 +38,8 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, req *http.Request) {
 }
 
 func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
+	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
+
 	type parameters struct {
 		Body string `json:"body"`
 	}
@@ -51,7 +54,7 @@ func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
 	}
 
 	type returnVals struct {
-		Valid bool `json:"valid"`
+		Cleaned string `json:"cleaned_body"`
 		Error string `json:"error"`
 	}
 
@@ -59,8 +62,20 @@ func handlerValidateChirp(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if len(params.Body) <= 140 {
-		rVals.Valid = true
+		splitString := strings.Split(params.Body, " ")
+		for i, word := range splitString {
+			loweredWord := strings.ToLower(word)
+			for _, profanity := range profaneWords{
+				if loweredWord == profanity {
+					splitString[i] = "****"
+				}
+			}
+		}
+		cleanedString := strings.Join(splitString, " ")
+
+		rVals.Cleaned = cleanedString
 		w.WriteHeader(200)
+
 	} else {
 		rVals.Error = "Chirp is too long"
 		w.WriteHeader(400)
