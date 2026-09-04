@@ -12,6 +12,21 @@ import (
 	"github.com/CrstKng/Chirpy/internal/database"
 )
 
+type User struct {
+	ID uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email string `json:"email"`
+}
+
+type Chirp struct {
+	ID uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body string `json:"body"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
 func handlerReadinessCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(200)
@@ -59,13 +74,8 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(500)
 		return
 	}
-	type returnVals struct {
-		ID uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email string `json:"email"`
-	}
-	rVals := returnVals{}
+	
+	rVals := User{}
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
@@ -75,7 +85,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(500)
 		return
 	}
-	rVals = returnVals{
+	rVals = User{
 		ID: user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
@@ -92,7 +102,7 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	w.Write(data)
 }
 
-func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) handlerCreateChirps(w http.ResponseWriter, r *http.Request) {
 	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
 	type Parameters struct {
 		Body   string `json:"body"`
@@ -124,15 +134,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		return
 	}
-
-	type returnVals struct {
-		ID uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Body string `json:"body"`
-		UserID uuid.UUID `json:"user_id"`
-	}
-	rVals := returnVals{}
+	rVals := Chirp{}
 	w.Header().Set("Content-Type", "application/json")
 
 	dbParams := database.CreateChirpParams{
@@ -147,7 +149,7 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		return
 	}
-	rVals = returnVals{
+	rVals = Chirp{
 		ID: chirp.ID,
 		CreatedAt: chirp.CreatedAt,
 		UpdatedAt: chirp.UpdatedAt,
@@ -163,4 +165,70 @@ func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(201)
 	w.Write(data)
+}
+
+func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.dbQueries.GetChirps(r.Context())
+	if err != nil {
+		log.Printf("error when getting chirps from database: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	rVals := []Chirp{}
+	for _, chirp := range chirps {
+		current := Chirp{
+			ID: chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body: chirp.Body,
+			UserID: chirp.UserID,
+		}
+		rVals = append(rVals, current)
+	}
+	data, err := json.Marshal(rVals)
+	if err != nil {
+		log.Printf("error when marshaling JSON data: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		log.Printf("error when writing data to body: %s", err)
+	}
+	w.WriteHeader(200)
+}
+
+func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
+	uuid, err := uuid.Parse(r.PathValue("chirpID"))
+	if err != nil {
+		log.Printf("Invalid id: %s", r.URL, err)
+		w.WriteHeader(400)
+		return
+	}
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), uuid)
+	if err != nil {
+		log.Printf("Chirp with id: %v not found: %s", r.URL, err)
+		w.WriteHeader(404)
+		return
+	}
+	
+	rVals := Chirp{
+		ID: chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body: chirp.Body,
+		UserID: chirp.UserID,
+	}
+
+	data, err := json.Marshal(rVals)
+	if err != nil {
+		log.Printf("error when marshaling JSON data: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		log.Printf("error when writing data to body: %s", err)
+	}
+	w.WriteHeader(200)
 }
