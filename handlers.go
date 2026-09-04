@@ -9,6 +9,7 @@ import (
 	"strings"
 	"github.com/google/uuid"
 	"time"
+	"github.com/CrstKng/Chirpy/internal/database"
 )
 
 func handlerReadinessCheck(w http.ResponseWriter, r *http.Request) {
@@ -46,51 +47,6 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 }
 
-func handlerValidateChirp(w http.ResponseWriter, r *http.Request) {
-	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
-	type parameters struct {
-		Body string `json:"body"`
-	}
-	decoder := json.NewDecoder(r.Body)
-	params := parameters{}
-	err := decoder.Decode(&params)
-	if err != nil {
-		log.Printf("error decoding parameters: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-	type returnVals struct {
-		Cleaned string `json:"cleaned_body"`
-		Error string `json:"error"`
-	}
-	rVals := returnVals{}
-	w.Header().Set("Content-Type", "application/json")
-	if len(params.Body) <= 140 {
-		splitString := strings.Split(params.Body, " ")
-		for i, word := range splitString {
-			loweredWord := strings.ToLower(word)
-			for _, profanity := range profaneWords{
-				if loweredWord == profanity {
-					splitString[i] = "****"
-				}
-			}
-		}
-		cleanedString := strings.Join(splitString, " ")
-		rVals.Cleaned = cleanedString
-		w.WriteHeader(200)
-	} else {
-		rVals.Error = "Chirp is too long"
-		w.WriteHeader(400)
-	}
-	data, err := json.Marshal(rVals)
-	if err != nil {
-		log.Printf("error when marshaling JSON data: %s", err)
-		w.WriteHeader(500)
-		return
-	}
-	w.Write(data)
-}
-
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email string `json:"email"`
@@ -124,6 +80,79 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email: user.Email,
+	}
+
+	data, err := json.Marshal(rVals)
+	if err != nil {
+		log.Printf("error when marshaling JSON data: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(201)
+	w.Write(data)
+}
+
+func (cfg *apiConfig) handlerChirps(w http.ResponseWriter, r *http.Request) {
+	profaneWords := []string{"kerfuffle", "sharbert", "fornax"}
+	type Parameters struct {
+		Body   string `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	params := Parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		log.Printf("error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if len(params.Body) <= 140 {
+		splitString := strings.Split(params.Body, " ")
+		for i, word := range splitString {
+			loweredWord := strings.ToLower(word)
+			for _, profanity := range profaneWords{
+				if loweredWord == profanity {
+					splitString[i] = "****"
+				}
+			}
+		}
+		cleanedString := strings.Join(splitString, " ")
+		params.Body = cleanedString
+	} else {
+		log.Printf("Chirp is too long")
+		w.WriteHeader(400)
+		return
+	}
+
+	type returnVals struct {
+		ID uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body string `json:"body"`
+		UserID uuid.UUID `json:"user_id"`
+	}
+	rVals := returnVals{}
+	w.Header().Set("Content-Type", "application/json")
+
+	dbParams := database.CreateChirpParams{
+		Body: params.Body,
+		UserID: params.UserID,
+	}
+
+	ctx := r.Context()
+	chirp, err := cfg.dbQueries.CreateChirp(ctx, dbParams)
+	if err != nil {
+		log.Printf("error creating user: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	rVals = returnVals{
+		ID: chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body: chirp.Body,
+		UserID: chirp.UserID,
 	}
 
 	data, err := json.Marshal(rVals)
