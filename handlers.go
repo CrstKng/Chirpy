@@ -9,7 +9,9 @@ import (
 	"strings"
 	"github.com/google/uuid"
 	"time"
+
 	"github.com/CrstKng/Chirpy/internal/database"
+	"github.com/CrstKng/Chirpy/internal/auth"
 )
 
 type User struct {
@@ -64,6 +66,56 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
+		Password string `json:password`
+		Email string `json:"email"`
+	}
+	decoder := json.NewDecoder(r.Body)
+	params := parameters{}
+	err := decoder.Decode(&params)
+	if err != nil {
+		log.Printf("error decoding parameters: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		log.Printf("error hashing password: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	userParams := database.CreateUserParams{
+		Email: params.Email,
+		HashedPassword: hashedPassword,
+	}
+	ctx := r.Context()
+	user, err := cfg.dbQueries.CreateUser(ctx, userParams)
+	if err != nil {
+		log.Printf("error creating user: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	rVals := User{
+		ID: user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email: user.Email,
+	}
+
+	data, err := json.Marshal(rVals)
+	if err != nil {
+		log.Printf("error when marshaling JSON data: %s", err)
+		w.WriteHeader(500)
+		return
+	}
+	w.WriteHeader(201)
+	w.Write(data)
+}
+
+func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
+	type parameters struct {
+		Password string `json:password`
 		Email string `json:"email"`
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -79,26 +131,27 @@ func (cfg *apiConfig) handlerCreateUser(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
-	user, err := cfg.dbQueries.CreateUser(ctx, params.Email)
-	if err != nil {
-		log.Printf("error creating user: %s", err)
-		w.WriteHeader(500)
+	user, err1 := cfg.dbQueries.GetUserByEmail(ctx, params.Email)
+	matches, err2 := auth.CheckPasswordHash(params.Password, user.HashedPassword)
+	if err1 != nil || err2 != nil || !matches {
+		log.Printf("incorrect email or password")
+		w.WriteHeader(401)
 		return
 	}
+
 	rVals = User{
 		ID: user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email: user.Email,
 	}
-
 	data, err := json.Marshal(rVals)
 	if err != nil {
 		log.Printf("error when marshaling JSON data: %s", err)
 		w.WriteHeader(500)
 		return
 	}
-	w.WriteHeader(201)
+	w.WriteHeader(200)
 	w.Write(data)
 }
 
