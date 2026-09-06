@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 	"github.com/google/uuid"
+	"net/http"
 )
 
 func TestMakeJWT(t *testing.T) {
@@ -40,34 +41,34 @@ func TestValidateJWT(t *testing.T) {
 	// setup: maybe create a valid token once here, or per test case
 	userId := uuid.New()
 	tests := []struct {
-	name          string
-	signingSecret string
-	validateSecret string
-	expiresIn     time.Duration
-	wantErr       bool
-}{
-	{
-		name:          "valid token",
-		signingSecret: "secret-a",
-		validateSecret: "secret-a",
-		expiresIn:     time.Hour,
-		wantErr:       false,
-	},
-	{
-		name:          "wrong secret",
-		signingSecret: "secret-a",
-		validateSecret: "secret-b",
-		expiresIn:     time.Hour,
-		wantErr:       true,
-	},
-	{
-		name:          "expired token",
-		signingSecret: "secret-a",
-		validateSecret: "secret-a",
-		expiresIn:     -time.Hour,
-		wantErr:       true,
-	},
-}
+		name          string
+		signingSecret string
+		validateSecret string
+		expiresIn     time.Duration
+		wantErr       bool
+	}{
+		{
+			name:          "valid token",
+			signingSecret: "secret-a",
+			validateSecret: "secret-a",
+			expiresIn:     time.Hour,
+			wantErr:       false,
+		},
+		{
+			name:          "wrong secret",
+			signingSecret: "secret-a",
+			validateSecret: "secret-b",
+			expiresIn:     time.Hour,
+			wantErr:       true,
+		},
+		{
+			name:          "expired token",
+			signingSecret: "secret-a",
+			validateSecret: "secret-a",
+			expiresIn:     -time.Hour,
+			wantErr:       true,
+		},
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -83,6 +84,32 @@ func TestValidateJWT(t *testing.T) {
 			}
 			if !tt.wantErr && gotID != userId {
 				t.Errorf("ValidateJWT() gotID = %v, want %v", gotID, userId)
+			}
+		})
+	}
+}
+
+func TestGetBearerToken(t *testing.T) {
+	tests := []struct {
+		name   string
+		authHeader http.Header
+		wantErr bool
+	}{
+		{name: "correct", authHeader: map[string][]string{
+			"Authorization": {"Bearer Auth"},
+			}, wantErr: false},
+		{name: "incorrect", authHeader: map[string][]string{
+			"Authorization": {"Non-Bearer Auth"},
+			}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auth, err := GetBearerToken(tt.authHeader)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("unexpected error when getting authorization from header: %v", err)
+			}
+			if (auth != "Auth") != tt.wantErr {
+				t.Errorf("GetBearerToken() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

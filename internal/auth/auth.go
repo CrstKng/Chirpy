@@ -5,6 +5,8 @@ import (
 	"github.com/google/uuid"
 	"time"
 	"log"
+	"net/http"
+	"strings"
 
 	"github.com/alexedwards/argon2id"
 	"github.com/golang-jwt/jwt/v5"
@@ -63,4 +65,13 @@ func ValidateJWT(tokenString, tokenSecret string) (uuid.UUID, error) {
 		return uuidNuLL, err
 	}
 	return userID, nil
+}
+
+func GetBearerToken(headers http.Header) (string, error) {
+	splitAuthHeader := strings.Split(headers["Authorization"][0], " ")
+	if splitAuthHeader[0] == "Bearer" {
+		return splitAuthHeader[1], nil
+	} else {
+		return "", fmt.Errorf("authorization header is not written in the form: 'Bearer AuthString'")
+	}
 }
