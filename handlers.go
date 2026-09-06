@@ -254,7 +254,7 @@ func (cfg *apiConfig) handlerGetChirps(w http.ResponseWriter, r *http.Request) {
 func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 	uuid, err := uuid.Parse(r.PathValue("chirpID"))
 	if err != nil {
-		log.Printf("Invalid id: %s", r.URL, err)
+		log.Printf("Invalid id: %s", err)
 		w.WriteHeader(400)
 		return
 	}
