@@ -1,21 +1,19 @@
 package main
 
 import (
-	"strconv"
 	"time"
 	"encoding/json"
 	"log"
-
 	"net/http"
 
 	"github.com/CrstKng/Chirpy/internal/auth"
+	"github.com/CrstKng/Chirpy/internal/database"
 )
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Password string `json:"password"`
 		Email string `json:"email"`
-		ExpiresInSeconds int `json:"expires_in_seconds"`
 	}
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
@@ -24,9 +22,6 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error decoding parameters: %s", err)
 		w.WriteHeader(500)
 		return
-	}
-	if params.ExpiresInSeconds == 0 || params.ExpiresInSeconds > 3600 {
-		params.ExpiresInSeconds = 3600
 	}
 	
 	rVals := User{}
@@ -40,24 +35,32 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(401)
 		return
 	}
-	expiresIn, err := time.ParseDuration(strconv.Itoa(params.ExpiresInSeconds) + "s")
+	accessExpiresIn := time.Hour
+	accessToken, err := auth.MakeJWT(user.ID, cfg.SECRET, accessExpiresIn)
 	if err != nil {
-		log.Printf("error when converting expiresInSeconds to time.Duration: %s", err)
+		log.Printf("error when creating access token: %s", err)
 		w.WriteHeader(500)
 		return
 	}
-	token, err := auth.MakeJWT(user.ID, cfg.SECRET, expiresIn)
+	refreshToken := auth.MakeRefreshToken()
+	arg := database.CreateRefreshTokenParams{
+		Token: refreshToken,
+		UserID: user.ID,
+	}
+	rToken, err := cfg.dbQueries.CreateRefreshToken(r.Context(), arg)
 	if err != nil {
-		log.Printf("error when creating token: %s", err)
+		log.Printf("error when creating refresh token: %s", err)
 		w.WriteHeader(500)
 		return
 	}
+
 	rVals = User{
 		ID: user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email: user.Email,
-		Token: token,
+		Token: accessToken,
+		RefreshToken: rToken.Token,
 	}
 	data, err := json.Marshal(rVals)
 	if err != nil {
