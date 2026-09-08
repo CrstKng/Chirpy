@@ -93,3 +93,9 @@ SET
   is_chirpy_red = TRUE
 WHERE
   id = $1;
+
+-- name: GetChirpIDByUserID :many
+SELECT chirps.id FROM chirps
+INNER JOIN users
+ON users.id = chirps.user_id
+WHERE users.id = $1;
