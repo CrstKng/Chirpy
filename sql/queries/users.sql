@@ -86,3 +86,10 @@ SELECT users.* FROM users
 INNER JOIN chirps
 ON users.id = chirps.user_id
 WHERE users.id = $1 AND chirps.id = $2;
+
+-- name: UpdateUserMembership :exec
+UPDATE users
+SET
+  is_chirpy_red = TRUE
+WHERE
+  id = $1;

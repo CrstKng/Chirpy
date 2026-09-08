@@ -64,6 +64,7 @@ func (cfg *apiConfig) handlerUpdateUserEmailPassword(w http.ResponseWriter, r *h
 		CreatedAt: new_user.CreatedAt,
 		UpdatedAt: new_user.UpdatedAt,
 		Email: new_user.Email,
+		IsChirpyRed: new_user.IsChirpyRed,
 	}
 	data, err := json.Marshal(rVals)
 	if err != nil {
@@ -115,6 +116,7 @@ func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request)
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email: user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 	data, err := json.Marshal(rVals)
 	if err != nil {

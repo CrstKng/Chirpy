@@ -61,6 +61,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Email: user.Email,
 		Token: accessToken,
 		RefreshToken: rToken.Token,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 	data, err := json.Marshal(rVals)
 	if err != nil {

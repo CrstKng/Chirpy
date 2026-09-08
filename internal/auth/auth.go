@@ -76,9 +76,23 @@ func GetBearerToken(headers http.Header) (string, error) {
 	if len(splitAuthHeader) == 1 {
 		return "", fmt.Errorf("invalid authorization header")
 	}
-	if splitAuthHeader[0] == "Bearer" {
-		return splitAuthHeader[1], nil
-	} else {
+	if splitAuthHeader[0] != "Bearer" {
 		return "", fmt.Errorf("authorization header is not written in the form: 'Bearer AuthString'")
 	}
+	return splitAuthHeader[1], nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	headerContent:= headers.Get("Authorization")
+	if headerContent == "" {
+		return "", fmt.Errorf("no authorization header")
+	}
+	splitAuthHeader := strings.Split(headerContent, " ")
+	if len(splitAuthHeader) == 1 {
+		return "", fmt.Errorf("invalid authorization header")
+	}
+	if splitAuthHeader[0] != "ApiKey" {
+		return "", fmt.Errorf("authorization header is not written in the form: 'Authorization: ApiKey THE_KEY_HERE'")
+	}
+	return splitAuthHeader[1], nil
 }
