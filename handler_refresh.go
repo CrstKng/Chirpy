@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/CrstKng/Chirpy/internal/auth"
@@ -15,13 +14,12 @@ type AccessToken struct {
 }
 
 func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
-	splitRefreshHeader := strings.Split(r.Header["Authorization"][0], " ")
-	if splitRefreshHeader[0] != "Bearer" {
-		log.Printf("authorization header is not written in the form: 'Authorization: Bearer <refresh-token>'")
-		w.WriteHeader(500)
+	refreshToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Authentication token JWT is malformed or not valid: %s", err)
+		w.WriteHeader(401)
 		return
 	}
-	refreshToken := splitRefreshHeader[1]
 	user, err := cfg.dbQueries.GetUserByRefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		log.Printf("error when getting user by refresh from db: %s", err)

@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
+
+	"github.com/CrstKng/Chirpy/internal/auth"
 )
 
 type RefreshToken struct {
@@ -12,14 +13,13 @@ type RefreshToken struct {
 }
 
 func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
-	splitRefreshHeader := strings.Split(r.Header["Authorization"][0], " ")
-	if splitRefreshHeader[0] != "Bearer" {
-		log.Printf("authorization header is not written in the form: 'Authorization: Bearer <refresh-token>'")
-		w.WriteHeader(500)
+	refreshToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Authentication token JWT is malformed or not valid: %s", err)
+		w.WriteHeader(401)
 		return
 	}
-	refreshToken := splitRefreshHeader[1]
-	err := cfg.dbQueries.RevokeRefreshToken(r.Context(), refreshToken)
+	err = cfg.dbQueries.RevokeRefreshToken(r.Context(), refreshToken)
 	if err != nil {
 		log.Printf("error when revoking refresh token %s: %s", refreshToken, err)
 		w.WriteHeader(401)

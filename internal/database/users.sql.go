@@ -103,6 +103,17 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteChirpByID = `-- name: DeleteChirpByID :exec
+DELETE FROM chirps
+WHERE
+  id = $1
+`
+
+func (q *Queries) DeleteChirpByID(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteChirpByID, id)
+	return err
+}
+
 const deleteUsers = `-- name: DeleteUsers :exec
 DELETE FROM users
 `
@@ -182,6 +193,24 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, created_at, updated_at, email, hashed_password FROM users
+WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Email,
+		&i.HashedPassword,
+	)
+	return i, err
+}
+
 const getUserByRefreshToken = `-- name: GetUserByRefreshToken :one
 SELECT users.id, users.created_at, users.updated_at, users.email, users.hashed_password FROM users
 INNER JOIN refresh_tokens
@@ -216,4 +245,50 @@ WHERE
 func (q *Queries) RevokeRefreshToken(ctx context.Context, token string) error {
 	_, err := q.db.ExecContext(ctx, revokeRefreshToken, token)
 	return err
+}
+
+const updateUserEmailPassword = `-- name: UpdateUserEmailPassword :exec
+UPDATE users
+SET
+  updated_at = NOW(),
+  email = $1,
+  hashed_password = $2
+WHERE
+  id = $3
+`
+
+type UpdateUserEmailPasswordParams struct {
+	Email          string
+	HashedPassword string
+	ID             uuid.UUID
+}
+
+func (q *Queries) UpdateUserEmailPassword(ctx context.Context, arg UpdateUserEmailPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserEmailPassword, arg.Email, arg.HashedPassword, arg.ID)
+	return err
+}
+
+const validateChirpOwner = `-- name: ValidateChirpOwner :one
+SELECT users.id, users.created_at, users.updated_at, users.email, users.hashed_password FROM users
+INNER JOIN chirps
+ON users.id = chirps.user_id
+WHERE users.id = $1 AND chirps.id = $2
+`
+
+type ValidateChirpOwnerParams struct {
+	ID   uuid.UUID
+	ID_2 uuid.UUID
+}
+
+func (q *Queries) ValidateChirpOwner(ctx context.Context, arg ValidateChirpOwnerParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, validateChirpOwner, arg.ID, arg.ID_2)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Email,
+		&i.HashedPassword,
+	)
+	return i, err
 }

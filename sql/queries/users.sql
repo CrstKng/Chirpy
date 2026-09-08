@@ -35,6 +35,10 @@ WHERE id = $1;
 SELECT * FROM users
 WHERE email = $1;
 
+-- name: GetUserByID :one
+SELECT * FROM users
+WHERE id = $1;
+
 -- name: CreateRefreshToken :one
 INSERT INTO refresh_tokens (token, created_at, updated_at, user_id, expires_at, revoked_at)
 VALUES (
@@ -62,3 +66,23 @@ SET
   revoked_at = NOW()
 WHERE
   token = $1;
+
+-- name: UpdateUserEmailPassword :exec
+UPDATE users
+SET
+  updated_at = NOW(),
+  email = $1,
+  hashed_password = $2
+WHERE
+  id = $3;
+
+-- name: DeleteChirpByID :exec
+DELETE FROM chirps
+WHERE
+  id = $1;
+
+-- name: ValidateChirpOwner :one
+SELECT users.* FROM users
+INNER JOIN chirps
+ON users.id = chirps.user_id
+WHERE users.id = $1 AND chirps.id = $2;
