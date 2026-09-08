@@ -58,6 +58,7 @@ go install github.com/pressly/goose/v3/cmd/goose@latest
 ```
 
 To run those migrations run from `sql/schema` directory:
+
 For Linux or WSL on Windows:
 ```bash
 goose postgres "postgres://postgres_username:postgres_password@localhost:5432/chirpy" up
